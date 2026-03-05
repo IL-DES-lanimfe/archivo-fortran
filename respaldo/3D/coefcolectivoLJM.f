@@ -1,0 +1,393 @@
+C     PROGRAMA PARA CALCULAR LA F(K,T) TEORICA EN TRES DIMENSIONES 
+C     ENTRADAS: ARCHIVO R VS G(R) SIMULADAS CON DB Y
+C     K VS S(K) TAMBIEN CON DB,PARA EL CASO DE SOFT-SPHERES
+C     SALIDA: PARA CADA T ARCHIVO K VS F(K,T)
+C     ADAPTADO PARA 3D DEL PROGRAMA COL3SEX.F DE ACU� (27-II-01)
+C     RUMBO A CANCUN-01
+C     ADECUACION PARA SOFT-SPHERES, VISITA M.M.N. (26-I-02)
+
+      PROGRAM COL3SS
+      IMPLICIT REAL*8(A-H,O-Z)
+      PARAMETER (N=4096)
+      PARAMETER (NL=4096)
+
+      DIMENSION R(N),FR(N),RK(NL),FK(NL)
+      DIMENSION XM1K(NL),XM21K(NL),XM22K(NL),XM2KA(NL)
+      DIMENSION XM23K(NL),XM2K(NL),XAAA(NL),XBBB(NL)
+      DIMENSION XM31K(NL),XM32K(NL),XM33K(NL)
+      DIMENSION XM34K(NL),XM35K(NL),XM36K(NL)
+      DIMENSION XM37K(NL),XM3K(NL),F12K(NL),XM38K(NL)
+      DIMENSION XU10(N),XU11(N),XU12(N),XU13(N),XM2KK(NL)
+      DIMENSION XU20(N),XU21(N),XU22(N),XU23(N),XU24(N)
+      DIMENSION XU25(N),XKR(N),XJ0(N),XJ1(N)
+      DIMENSION F1(N),F2(N),F3(N),F4(N),F5(N),F2PP(N)
+      DIMENSION F2P(N),F3P(N),F8P(N),F9P(N),XM39K(NL)
+      DIMENSION F6(N),F7(N),F8(N),F9(N),XD1KS(NL),XD2KS(NL)
+      DIMENSION XD0K(NL),XAA(NL),XBB(NL),XD1K(NL),XD2K(NL)
+      DIMENSION F1K(NL),F2K(NL),FTK(NL),XD00K(NL)
+      DIMENSION XM32PK(NL),XM33PK(NL),XM36PK(NL),XM37PK(NL)
+
+      OPEN (15,FILE = 'fdisradLJMVWfv643nu13.dat')
+      OPEN (16,FILE = 'colLJMVWfv643nu13.dat')
+      OPEN (18,FILE = 'facdesLJMVWfv643nu13.dat')
+
+      PI=4.0*ATAN(1.0)
+c	WRITE(*,*)'DAME S0,RK0'
+c	READ(*,*)S0,RK0
+!       WRITE(*,*)'DAME DT'
+!       READ(*,*)DT
+c      TT=DT*0.00448903
+! 	TT=DT*0.0005
+      PHI=0.643
+C	RHO=0.003
+      RHO=6.0*PHI/PI
+C      PHI=PI*RHO/6.0
+C      RHO=0.0008403
+      XZK=13.0
+      A=1.0
+C      XK=XK*EXP(XZK)
+      DO 5 LL=1,N,1
+      READ(15,*)R(LL),FR(LL)
+	if(FR(LL).LT.1.D-15) IRMIN=LL-1
+	IF(R(LL).LE.1.0) IRMAX=LL
+5     CONTINUE
+      DO 6 MM=1,NL,1
+      READ(18,*)RK(MM),FK(MM)
+c      FK(MM)=1.0
+6     CONTINUE
+
+      DR=R(2)-R(1)
+c DEFINICION DEL POTENCIAL
+      DO 7 JJ=1,N,1
+C PARA EVITAR NAN
+      IF(JJ.LT.IRMIN)THEN
+       XU10(JJ)=0.0
+       XU11(JJ)=0.0
+       XU12(JJ)=0.0
+       XU13(JJ)=0.0
+	
+
+       XU20(JJ)=0.0
+       XU21(JJ)=0.0
+ 
+       XU22(JJ)=0.0
+       XU23(JJ)=0.0
+       XU24(JJ)=0.0
+       XU25(JJ)=0.0
+      ENDIF
+C     PARA EL POTENCIAL LENARD-JONES MODIFICADO (SOLO EN EL INTERVALO QUE
+C     CONTRIBUYE A LA INTEGRAL)
+      IF((JJ.GE.IRMIN).AND.(JJ.LE.IRMAX))THEN
+       XUAUX=A/R(JJ)**XZK
+       XU10(JJ)=XUAUX**2-2.0*XUAUX+1.0
+       XU11(JJ)=-2.0*XZK*(XUAUX**2-XUAUX)/R(JJ)
+       XU12(JJ)=2.0*XZK*((2.0*XZK+1.0)*XUAUX**2-
+     $         (XZK+1.0)*XUAUX)/R(JJ)**2
+       XU13(JJ)=-2.0*XZK*((2.0*XZK+1.0)*(2.0*XZK+2.0)*XUAUX**2-
+     $          (XZK+1.0)*(XZK+2.0)*XUAUX)/R(JJ)**3
+
+       XU20(JJ)=XU12(JJ)+2.0*XU11(JJ)/R(JJ)
+       XU21(JJ)=XU12(JJ)-XU11(JJ)/R(JJ)
+
+       XU22(JJ)=XU11(JJ)/R(JJ)
+       XU23(JJ)=XU21(JJ)/R(JJ)
+       XU24(JJ)=XU12(JJ)**2-(XU11(JJ)/R(JJ))**2
+       XU25(JJ)=(XU11(JJ)/R(JJ))**2
+      ENDIF
+      if(JJ.GT.IRMAX)then
+       XU10(JJ)=0.0
+       XU11(JJ)=0.0
+       XU12(JJ)=0.0
+       XU13(JJ)=0.0
+
+       XU20(JJ)=0.0
+       XU21(JJ)=0.0
+
+       XU22(JJ)=0.0
+       XU23(JJ)=0.0
+       XU24(JJ)=0.0
+       XU25(JJ)=0.0
+      endif
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+ 7    CONTINUE
+
+      DO 8 KK=1,N,1
+      F1(KK)=FR(KK)*XU20(KK)*R(KK)**2
+      F2(KK)=FR(KK)*XU24(KK)*R(KK)**2
+      F3(KK)=FR(KK)*XU25(KK)*R(KK)**2
+      F2P(KK)=FR(KK)*F2(KK)
+      F3P(KK)=FR(KK)*F3(KK)
+      F2PP(KK)=FR(KK)*XU12(KK)*R(KK)**4
+ 8    CONTINUE
+
+      CALL SIMPSON(F1,DR,N,XINT1)
+      CALL SIMPSON(F2,DR,N,XINT2)
+      CALL SIMPSON(F3,DR,N,XINT3)
+      CALL SIMPSON(F2P,DR,N,XINT2P)
+      CALL SIMPSON(F3P,DR,N,XINT3P)
+
+
+      DO 10 II=1,NL,1
+
+C   PRIMER MOMENTO:
+
+      XM1K(II)=-RK(II)**2
+
+C   CHECANDO EL COMPORTAMIENTO DEL PRIMER MOMENTO
+c      WRITE(16,*)RK(II),XM1K(II)
+
+      XM21K(II)=4.0*RHO*PI*RK(II)**2*XINT1/3.0
+
+      XM31K(II)=-(4.0*PI*RHO*RK(II)**4)*XINT1
+      XM32K(II)=-(8.0*PI*RHO*RK(II)**2)*XINT2/3.0
+      XM33K(II)=-(8.0*PI*RHO*RK(II)**2)*XINT3 
+      XM32PK(II)=-(8.0*PI*RHO*RK(II)**2)*XINT2P/3.0
+      XM33PK(II)=-(8.0*PI*RHO*RK(II)**2)*XINT3P 
+
+      DO 9 I=1,N,1
+      XKR(I)=RK(II)*R(I)
+      XKR2=XKR(I)
+      IF(I.LT.IRMIN)THEN
+      F4(I)=0.0
+      F5(I)=0.0
+      F6(I)=0.0
+      F7(I)=0.0
+      F8(I)=0.0
+      F9(I)=0.0
+      F8P(I)=0.0
+      F9P(I)=0.0
+      ELSE
+       F4(I)=R(I)**2*(FR(I)*XU12(I)*SIN(XKR2)/XKR2)
+       F5(I)=R(I)**2*(FR(I)*XU21(I)*(SIN(XKR2)/XKR2**3-
+     %  COS(XKR2)/XKR2**2))
+       F6(I)=R(I)**2*(FR(I)*XU13(I)*((6.0/XKR2**3-
+     %  1.0/XKR2)*COS(XKR2)+
+     $  3.0*(1.0/XKR2**2-2.0/XKR2**4)*SIN(XKR2)))
+       F7(I)=R(I)**2*(FR(I)*(XU21(I)/R(I))*(SIN(XKR2)/XKR2**2+
+     &  3.0*(COS(XKR2)/XKR2**3-SIN(XKR2)/XKR2**4)))
+       F8(I)=R(I)**2*(FR(I)*XU24(I)*((1.0/XKR2-
+     %  2.0/XKR2**3)*SIN(XKR2)+
+     &  2.0*COS(XKR2)/XKR2**2))
+       F9(I)=R(I)**2*(FR(I)*XU25(I)*SIN(XKR2)/XKR2)
+       F8P(I)=F8(I)*FR(I)
+       F9P(I)=F9(I)*FR(I)
+      ENDIF
+ 9    CONTINUE
+
+      CALL SIMPSON(F4,DR,N,XINT4)
+      CALL SIMPSON(F5,DR,N,XINT5)
+      CALL SIMPSON(F6,DR,N,XINT6)
+      CALL SIMPSON(F7,DR,N,XINT7)
+      CALL SIMPSON(F8,DR,N,XINT8)
+      CALL SIMPSON(F9,DR,N,XINT9)
+      CALL SIMPSON(F8P,DR,N,XINT8P)
+      CALL SIMPSON(F9P,DR,N,XINT9P)
+      CALL SIMPSON(F2PP,DR,N,XINT2PP)
+
+      XM22K(II)=-4.0*PI*RHO*RK(II)**2*XINT4
+      XM23K(II)=8.0*PI*RHO*RK(II)**2*XINT5
+
+C   SEGUNDO MOMENTO:
+      XM2K(II)=XM1K(II)**2+XM21K(II)+XM22K(II)+XM23K(II)
+
+C   SEGUNDO MOMENTO ASINTOTICA HASTA ORDEN RK**4
+c      XM2KA(II)=(1.0+2.0*PI*RHO*XINT2PP/3.0)*XM1K(II)**2
+
+C   CHECANDO EL COMPORTAMIENTO SEGUNDO MOMENTO
+c      WRITE(16,*)RK(II),XM2K(II)
+      
+      XM34K(II)=-8.0*PI*RHO*RK(II)**3*XINT6
+      XM35K(II)=48.0*RHO*PI*RK(II)**3*XINT7
+C     OJO SEGUN MI REVISION EL SIGNO EN LAS SIGUIENTES CUATRO LINEAS DEBE
+C     SER +
+      XM36K(II)=8.0*PI*RHO*RK(II)**2*XINT8
+      XM37K(II)=8.0*PI*RHO*RK(II)**2*XINT9
+      XM36PK(II)=8.0*PI*RHO*RK(II)**2*XINT8P
+      XM37PK(II)=8.0*PI*RHO*RK(II)**2*XINT9P
+
+
+C   INCLUYENDO TERMINOS APROXIMADOS
+
+C      S0=(FK(1)-1.0)
+
+      XM38K(II)=-(XM2K(II)-RK(II)**4)**2/RK(II)**2
+      XM39K(II)=XM32PK(II)+XM33PK(II)+XM36PK(II)+XM37PK(II)
+
+C   TERCER MOMENTO:(CON 2 TERMINOS APROXIMADOS)
+
+      XM3K(II)=XM1K(II)**3+XM31K(II)+XM32K(II)+
+     #XM33K(II)+XM34K(II)+XM35K(II)+XM36K(II)+XM37K(II)
+     #+XM38K(II)
+c     %+XM39K(II)
+
+C   CHECANDO EL COMPORTAMIENTO  TERCER MOMENTO
+c      WRITE(16,*)RK(II),XM3K(II)
+
+
+ 
+C   COEFICIENTE A(K):
+
+      XAA(II)=XM2K(II)
+     $-(XM1K(II)**2)/FK(II)
+
+C   CHECANDO EL COMPORTAMIENTO  
+c      WRITE(16,*)RK(II),XAA(II)
+
+C   COEFICIENTE B(K):
+
+      XBB(II)=(-XM3K(II)-(XM1K(II)**3)/FK(II)**2
+     $+2.0*XM1K(II)*XM2K(II)/FK(II))/XAA(II)
+
+C   CHECANDO EL COMPORTAMIENTO  
+c      WRITE(16,*)RK(II),XBB(II)
+
+
+C   COEFICIENTES DE LA FUNCION DE FRICCION QUE USA LA LAURA
+
+      XAAA(II)=XAA(II)/RK(II)**2
+      XBBB(II)=XBB(II)-XAAA(II)
+
+      WRITE(16,*)RK(II),XAAA(II),XBBB(II)
+
+C   RADICAL
+
+      XD00K(II)=(XBB(II)-(RK(II)**2)/FK(II))**2+
+     #4.0*XAA(II)/FK(II)
+      XD011=XD00K(II)
+      XD0K(II)=SQRT(XD011)
+
+C   D1(K):
+
+      XD1K(II)=(RK(II)**2/FK(II)+XBB(II))/2.0
+     #+XD0K(II)/2.0
+
+C   D2(K):
+
+      XD2K(II)=(RK(II)**2/FK(II)+XBB(II))/2.0
+     #-XD0K(II)/2.0
+
+
+C   F1(K) EN SEXP:
+
+      F1K(II)=FK(II)*(XD1K(II)-XBB(II))/(XD1K(II)-XD2K(II))
+
+C   F2(K) EN SEXP:
+
+      F2K(II)=FK(II)*(XD2K(II)-XBB(II))/(XD2K(II)-XD1K(II))
+
+C      WRITE(16,*)SNGL(RK(II)),SNGL(XAAA(II)),SNGL(XBBB(II))
+
+       F12K(II)=F1K(II)+F2K(II)
+
+       FTK(II)=F1K(II)*EXP(-XD1K(II)*TT)+F2K(II)*EXP(-XD2K(II)*TT)
+
+c       WRITE(16,*)SNGL(RK(II)),SNGL(FTK(II))
+
+c      WRITE(16,*)SNGL(RK(II)),SNGL(XD1K(II)),SNGL(XD2K(II))
+c      WRITE(16,*)SNGL(RK(II)),SNGL(F1K(II)),SNGL(F2K(II))
+
+10    CONTINUE
+
+      STOP
+      END
+
+C     ***********************************************
+C     SUBRUTINA PARA EL CALCULO DE LA J_(0). 
+C     BASE: ABRAMOWITZ, p.369.
+C     ***********************************************
+      SUBROUTINE XJOTA0(XKR2,XXJ0)
+      IMPLICIT REAL*4(A-H,O-Z)
+       if(abs(XKR2).le.3.0)then
+         yy=(XKR2/3.0)**2
+
+         XXJ0=1.0-2.2499997*yy+1.2656208*yy**2-
+     *0.3163866*yy**3+0.0444479*yy**4-0.0039444*
+     *yy**5+0.0002100*yy**6    
+
+       else
+         yy=(3.0/XKR2)
+
+         TETA0=XKR2-0.78539816-0.04166397*yy-0.00003954*
+     *yy**2+0.00262573*yy**3-0.00054125*yy**4-
+     *0.00029333*yy**5+0.00013558*yy**6
+
+         XF0=0.79788456-0.00000077*yy-0.00552740*yy**2-
+     *0.00009512*yy**3+0.00137237*yy**4-0.00072805*yy**5 +
+     *0.00014476*yy**6
+
+         XXJ0=XF0*COS(TETA0)/sqrt(XKR2)
+
+       endif
+
+       RETURN
+       END
+
+C     ***********************************************
+C     SUBRUTINA PARA EL CALCULO DE LA J_(1). 
+C     BASE: ABRAMOWITZ p.370.
+C     ***********************************************
+      SUBROUTINE XJOTA1(SPL,XXJ1)
+      IMPLICIT REAL*4 (A-H,O-Z)
+      if(abs(SPL).le.3.0)then
+        yy=(SPL/3.0)**2
+
+        XXJ1=(0.5-0.56249985*yy+0.21093573*yy**2-
+     *0.03954289*yy**3+0.00443319*yy**4-0.00031761*
+     *yy**5+0.00001109*yy**6)*SPL
+
+      else
+        yy=(3.0/SPL)
+
+         TETA1=SPL-2.35619449+0.12499612*yy+0.00005650*
+     *yy**2-0.00637879*yy**3+0.00074348*yy**4+0.00079824*
+     *yy**5-0.00029166*yy**6    
+
+         XF1=0.79788456+0.00000156*yy+0.01659667*yy**2+
+     *0.00017105*yy**3-0.00249511*yy**4+0.00113653*yy**5-
+     *0.00020033*yy**6
+
+        XXJ1=(XF1*COS(TETA1))/sqrt(SPL)
+
+      endif
+      RETURN
+      END
+
+C     ****************************************************
+C     SUBRUTINA DE INTEGRACION POR SIMPSON (N PAR?)
+C     ****************************************************
+c      SUBROUTINE SIMPSON(F,DD,N,RINT)
+C      PARAMETER (N=450)
+c      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+c      IMPLICIT REAL*4(A-H,O-Z)
+c      DIMENSION F(186)
+c      RINT=0.0
+c      DO 1 I=2,N,2
+c      RINT=RINT+(F(I-1)+4.0*F(I)+F(I+1))
+c1     CONTINUE
+c      RINT=(DD/3.0)*RINT
+c      RETURN
+c      END
+
+
+      SUBROUTINE SIMPSON(XINI,DR,N,RES1)
+      IMPLICIT REAL*8(A-H,O-Z)
+c      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DIMENSION XINI(N)
+	
+	RES1=0.0
+	S0=0.0
+	S1=0.0
+	S2=0.0
+
+	DO 100 I=2,N-1,2
+	S0=S0+XINI(I-1)
+	S1=S1+XINI(I)
+	S2=S2+XINI(I+1)
+100	CONTINUE
+	RES1=DR*(S0+4.0*S1+S2)/3.0
+	IF(MOD(N,2).EQ.0) RES1=RES1+DR*(5.0*XINI(N)+8.0*XINI(N-1)-
+     #	XINI(N-2))/12.0
+	RETURN
+	END
+
